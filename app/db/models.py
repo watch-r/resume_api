@@ -4,8 +4,11 @@ from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
+SCHEMA_NAME = "resume_api"
+
 class User(Base):
     __tablename__ = 'users'
+    __table_args__ = {"schema": SCHEMA_NAME}
     
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
@@ -20,9 +23,10 @@ class User(Base):
     
 class APILog(Base):
     __tablename__ = 'api_logs'
+    __table_args__ = {"schema": SCHEMA_NAME}
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey(f"{SCHEMA_NAME}.users.id"))
     endpoint = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     

@@ -1,24 +1,34 @@
-from fastapi import Header, HTTPException, status
-from app.core.config import API_KEY_HEADER
+from fastapi import Header, HTTPException, status, Depends
+from sqlalchemy.orm import Session
+from app.db.session import SessionLocal
+from app.db.models import User
 
-# TEMP: replace with DB lookup later
-VALID_API_KEYS = {
-    "sk_test_123456"
-}
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-def verify_api_key(authorization: str = Header(...)):
+
+def verify_api_key(
+    authorization: str = Header(...),
+    db: Session = Depends(get_db)
+):
     if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid auth header"
-        )
+        raise HTTPException(status_code=401, detail="Invalid auth header")
 
     api_key = authorization.replace("Bearer ", "")
 
-    if api_key not in VALID_API_KEYS:
+    user = db.query(User).filter(User.api_key == api_key).first()
+
+    if not user:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+    if user.used_quota >= user.monthly_quota:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid API key"
+            status_code=429,
+            detail="Monthly quota exceeded"
         )
 
-    return api_key
+    return user
